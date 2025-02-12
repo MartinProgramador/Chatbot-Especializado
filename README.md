@@ -91,6 +91,11 @@ Modificar la ruta para cargar los documentos: **variable (pdf_path)** del ficher
 
 3.	Para reproducir los experimentos realizados debemos de:
 
+-	Modificar los parámetros “chunk_size” y “chunk_overlap”, para modificar el tamaño de cada trozo y su solapamiento, en la función “split_text_into_chunks”
+-	Modificar tanto el número de resultados relevantes (n_results) así como al generar la respuesta (temperatura, top_k,num_predict y top_p) y ver cómo poder simular todo lo que se ha probado para conseguir un resultado óptimo y que así se ha reflejado en la memoria.
+
+Para ejecutarlo por terminal sería suficiente, con poner: *python3 ejercicio2_pinecone.py “pregunta”*
+
 ### 💻 Ejercicio 3: Parte Opcional
 1.	Instalar las siguientes dependencias:
 
