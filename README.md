@@ -16,7 +16,17 @@ Desarrollar e implementar un sistema que facilite a los clientes finales realiza
 -	Instalar Docker.
 -	Descargar Telegram Desktop
 -	Será necesario tener pip instalado en el sistema para gestionar la instalación de las dependencias requeridas por el proyecto.
-
+-	Es recomendable ejecutar la práctica en un entorno virtual **(venv)**, para eso:
+    - Abrir una terminal de *Windows, Mac o Linux*.
+    - Ir hasta el directorio del proyecto, usando: *cd /ruta/al/proyecto*
+    - Crear el entorno virtual: python -m venv nombre
+    - Activar el entorno:
+      - En Windows: *nombre\Scripts\activate*
+      - En macOS/Linux: *source nombre/bin/activate*
+    - Comprobar que el entorno virtual está activado. Se mostrará el nombre del entorno al comienzo de la línea de comandos entre paréntesis.
+    - Instalar las dependencias necesarias para ejecutar cualquier ejercicio.
+    - Ya se podrá ejecutar cualquier ejercicio como se indica más abajo, usando *python3 nombre_fichero.py*
+    - Una vez finalizado, desactivar el entorno virtual, usando el comando *deactivate*
 
 ## 💻 Pasos para la ejecución del sistema
 
