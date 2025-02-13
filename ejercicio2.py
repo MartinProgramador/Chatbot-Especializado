@@ -11,6 +11,7 @@ import chromadb.utils.embedding_functions as embedding_functions
 
 # Configuramos la API de Gemini
 GOOGLE_API_KEY = ""
+
 genai.configure(api_key=GOOGLE_API_KEY)
 
 pdf_path = "pdf"
@@ -56,7 +57,7 @@ def load_pdfs(pdf_path):
     return "\n\n\n".join(documentos_pdf)
 
 # Dividimos el texto de los pdf's en trozos
-def split_text_into_chunks(documentos_pdf, chunk_size=1000, chunk_overlap=500):
+def split_text_into_chunks(documentos_pdf, chunk_size=750, chunk_overlap=200):
     
     splitter = RecursiveCharacterTextSplitter(separators=["\n\n", "\n", ". ", " ", ""],chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     chunks = splitter.split_text(documentos_pdf)
@@ -92,9 +93,11 @@ def configure_and_create_collection_chroma():
 
     # Generamos los embeddings
     # create_collection
-    collection = chroma_client.get_or_create_collection(
-        name="local_rag_db", 
+
+    collection = chroma_client.create_collection(
+        name="my_rag_db", 
         embedding_function=embedding_function,
+        get_or_create=True,
         metadata= {
             "hnsw:space": "cosine", 
             "hnsw:search_ef": 300, 
