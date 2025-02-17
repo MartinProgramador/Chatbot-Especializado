@@ -92,6 +92,7 @@ Para ejecutarlo por terminal sería suficiente, con poner: *python3 ejercicio2.p
    python chatbot_telegram.py *“pregunta”*
 
 Para reproducir los experimentos y optimizar los resultados, puede modificar los siguientes parámetros:
+
 1️⃣ Ajustar el tamaño y solapamiento de los fragmentos (chunks)
 Ubicado en split_text_into_chunks() en chatbot_telegram.py:
 def split_text_into_chunks(texto_completo, chunk_size=150, chunk_overlap=50):
@@ -113,8 +114,8 @@ Question: {question}
 """
 Cambiar la estructura del prompt puede mejorar la coherencia de las respuestas.
 
-🛠 Posibles Errores y Soluciones
-Problema	Solución
+🛠 Posibles Errores y Soluciones:
+
 El chatbot no encuentra información relevante	-> Ajustar chunk_size y chunk_overlap para mejorar la segmentación del texto.
 Error al procesar el archivo HTML ->	Verificar la estructura del HTML y que los elementos (from_name, text, date) estén correctamente extraídos.
 ChromaDB no devuelve fragmentos precisos ->	Ajustar k en la función de recuperación de documentos.
