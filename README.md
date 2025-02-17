@@ -85,8 +85,8 @@ Para ejecutarlo por terminal sería suficiente, con poner: *python3 ejercicio2.p
 2.	Modificar la ruta **variable (htlm_path)** del archivo *chatbot_telegram.py* para que los mensajes del archivo HTML se carguen correctamente.
 
 3. Ejecutar el servidor de embeddings y ChromaDB
-   - Iniciar Ollama en una terminal:
-     ollama serve
+- Iniciar Ollama en una terminal:
+  ollama serve
 
 4. Ejecutar el chatbot con una consulta
    python chatbot_telegram.py *“pregunta”*
@@ -111,10 +111,12 @@ Reducir k puede acelerar la respuesta, pero puede perder información relevante.
 3️⃣ Ajustar la generación de respuestas con LLaMA 3:
 
 En generate_answer(), se pueden modificar los parámetros del prompt enviado al modelo:
+
 formatted_prompt = f"""Answer the question based ONLY on the following context:
 {context}
 Question: {question}
 """
+
 Cambiar la estructura del prompt puede mejorar la coherencia de las respuestas.
 
 🛠 Posibles Errores y Soluciones:
