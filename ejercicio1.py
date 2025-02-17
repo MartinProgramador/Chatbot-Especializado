@@ -8,7 +8,7 @@ from ollama import Client
 import pinecone
 
 
-# Cargar el contenido del PDF
+# Cargar el contenido del PDF.
 def load_pdf(pdf_path):
     reader = PdfReader(pdf_path)
     texto_completo = ""
