@@ -31,8 +31,15 @@ Desarrollar e implementar un sistema que facilite a los clientes finales realiza
 ## 💻 Pasos para la ejecución del sistema
 
 > [!NOTE]
-> Tenemos que situarnos en la ruta correspondiente a cada ejercicio para poder ejecutarlo, sino se producirá un error.
-Una vez instalado es necesario configurar las dependencias para que cada ejercicio se pueda ejecutar correctamente. Seguidamente y por cada ejercicio desarrollado, se mencionan como instalarse.
+> Se podrá ejecutar cada ejercicio de manera individual como se explica en cada uno de los apartados siguientes, a excepción del *Ejercicio 1 opcional* o se podrán ejecutar a través de una *interfaz* usando el framework de *Flask*, para poder llevarlo a cabo es necesario, lo siguiente:
+> 1. Abrir un terminal y situarse en la ruta del proyecto.
+> 2. Instalar Flask, utilizando: *pip3 install Flask*.
+> 3. Instalar las dependencias necesarias, sino se han instalado previamente, al ejecutar cualquier ejercicio de manera individual.
+> 4. A continuación debemos ejecutar la aplicación *Flask*, poniendo: *python3 -m flask run --debug*, esto nos permitirá que cualquier cambio realizado en el código, bien el *chat.html*, en los estilos *(estilos.css)* o en el fichero *app.py* se refresque automáticamente.
+> 5. Abrir un navegador y introducir la ruta: *http://127.0.0.1:5000*.
+> 6. Para probar la aplicación es necesario, elegir el modelo de entre 3 posibles opciones: *Ollama-Chroma, Ollama-Pinecone y Gemini*. La funcionalidad de cargar una imagen funcionará con el modelo *Gemini* y lo primero será escribir la pregunta y luego subir la imagen, de esta manera el modelo nos responderá a dicha petición. Por otro lado, tenemos la posibilidad de subir documentos en formato **PDF** y hacer preguntas sobre los mismos, seleccionando el modelo de procesamiento deseado.
+
+Una vez que se ha clonado el repositorio será necesario configurar las dependencias para que cada ejercicio se pueda ejecutar correctamente. Seguidamente y por cada ejercicio desarrollado, se mencionan como instalarse.
 
 ### 💻 Ejercicio 1: Parte Obligatoria
 1.	Instalar las siguientes dependencias:
@@ -47,7 +54,7 @@ Modificar la ruta para cargar los documentos: **variable (pdf_path)** del ficher
 
 2.	Para reproducir los experimentos realizados tenemos que:
 -	Modificar los parámetros “chunk_size” y “chunk_overlap”, para modificar el tamaño de cada trozo y su solapamiento, en la función “split_text_into_chunks”
--	Modificar tanto el número de resultados relevantes (n_results) así como al generar la respuesta (temperatura, top_k,num_predict y top_p) y ver cómo poder simular todo lo que se ha probado para conseguir un resultado óptimo y que así se ha reflejado en la memoria.
+-	Modificar tanto el número de resultados relevantes (n_results) así como al generar la respuesta (temperature, top_k, num_predict y top_p) y ver cómo poder simular todo lo que se ha probado para conseguir un resultado óptimo y que así se ha reflejado en la memoria.
 
 Para ejecutarlo por terminal sería suficiente, con poner: *python3 ejercicio1.py “pregunta”*
 
@@ -59,7 +66,7 @@ Para ejecutarlo por terminal sería suficiente, con poner: *python3 ejercicio1.p
 ### 💻 Ejercicio 2: Parte Obligatoria
 1.	Instalar las siguientes dependencias:
 
-Para poder ejecutar este ejercicio necesitamos disponer de la API_KEY de Google, para ello tenemos que ir al enlace: https://ai.google.dev/gemini-api/docs/api-key?hl=es-419 y configurarla. A continuación instalar la dependencias, como se indica a continuación:
+Para poder ejecutar este ejercicio necesitamos disponer de la *API_KEY* de *Google*, para ello tenemos que ir al enlace: https://ai.google.dev/gemini-api/docs/api-key?hl=es-419 y configurarla. A continuación instalar la dependencias, como se indica a continuación:
 
 -	pip install google-generativeai
 
@@ -68,7 +75,7 @@ Modificar la ruta para cargar los documentos: **variable (pdf_path)** del ficher
 2.	Para reproducir los experimentos realizados tenemos que:
 
 -	Modificar los parámetros “chunk_size” y “chunk_overlap”, para modificar el tamaño de cada trozo y su solapamiento, en la función “split_text_into_chunks”
--	Modificar tanto el número de resultados relevantes (n_results) así como al generar la respuesta (temperatura, top_k,num_predict y top_p) y ver cómo poder simular todo lo que se ha probado para conseguir un resultado óptimo y que así se ha reflejado en la memoria.
+-	Modificar tanto el número de resultados relevantes (n_results) así como al generar la respuesta (temperature, top_k, max_output_tokens y top_p) y ver cómo poder simular todo lo que se ha probado para conseguir un resultado óptimo y que así se ha reflejado en la memoria.
 
 Para ejecutarlo por terminal sería suficiente, con poner: *python3 ejercicio2.py “pregunta”*
 
