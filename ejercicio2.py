@@ -10,7 +10,7 @@ import chromadb
 import chromadb.utils.embedding_functions as embedding_functions
 
 # Configuramos la API de Gemini
-GOOGLE_API_KEY = ""
+GOOGLE_API_KEY = "AIzaSyAWMmCjoPifpofExi5yv8rSphLidNCqxF4"
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
@@ -57,7 +57,7 @@ def load_pdfs(pdf_path):
     return "\n\n\n".join(documentos_pdf)
 
 # Dividimos el texto de los pdf's en trozos
-def split_text_into_chunks(documentos_pdf, chunk_size=750, chunk_overlap=200):
+def split_text_into_chunks(documentos_pdf, chunk_size=1000, chunk_overlap=500):
     
     splitter = RecursiveCharacterTextSplitter(separators=["\n\n", "\n", ". ", " ", ""],chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     chunks = splitter.split_text(documentos_pdf)
@@ -87,13 +87,13 @@ def configure_and_create_collection_chroma():
     #collection_names = chroma_client.list_collections()
 
     # Buscamos si ya existe la colección creada en otras ejecuciones previamente y la borramos
-    #collection_name = chroma_client.get_collection(name="local_rag_db", embedding_function=embedding_function)
+    #collection_name = chroma_client.get_collection(name="my_rag_db", embedding_function=embedding_function)
     #for collection_name in collection_names:
             #chroma_client.delete_collection(name=collection_name)
 
     # Generamos los embeddings
     # create_collection
-
+    
     collection = chroma_client.create_collection(
         name="my_rag_db", 
         embedding_function=embedding_function,
@@ -105,7 +105,7 @@ def configure_and_create_collection_chroma():
         }
     )
 
-    print(f"Configurando y creando la colección en ChromaDB...")
+    print(f"Configurando y creando la colección en ChromaDB ...")
     return collection
 
 # Añadimos los datos de la colección a ChromaDB
@@ -128,7 +128,7 @@ def get_relevant_documents(question, collection):
         n_results=10
     )
 
-    print(f"Buscando los trozos más relevantes...")
+    print(f"Buscando los trozos más relevantes ...")
 
     return results['documents'][0]
 
@@ -164,10 +164,10 @@ def my_rag(results, question: str):
     response_text = llm.generate_content(
         formatted_prompt,
         generation_config=genai.types.GenerationConfig(
-            temperature=0.3,
-            max_output_tokens=512,
-            top_k=4,
-            top_p=0.3
+            temperature=0.2,
+            max_output_tokens=1024,
+            top_k=10,
+            top_p=0.8
         )
     )
 

@@ -1,102 +1,191 @@
+import os
 import argparse
+import sys
 from PyPDF2 import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.docstore.document import Document
-from langchain_chroma import Chroma
-from langchain_community.embeddings import OllamaEmbeddings
-from ollama import Client
-import pinecone
+from langchain_core.prompts import PromptTemplate
+import ollama
+import chromadb
+import chromadb.utils.embedding_functions as embedding_functions
 
+pdf_path = "pdf"
 
-# Cargar el contenido del PDF.
-def load_pdf(pdf_path):
-    reader = PdfReader(pdf_path)
-    texto_completo = ""
-    for pagina in reader.pages:
-        texto_completo += pagina.extract_text()
+class error_procesar_ficheros(Exception):
+    def __init__(self, parametro1):
+        self.parametro1 = parametro1
+
+class existe_directorio_sin_ficheros(Exception):
+    def __init__(self, parametro1):
+        self.parametro1 = parametro1
+
+class file_not_found_error(Exception):
+    def __init__(self, parametro1):
+        self.parametro1 = parametro1
+
+# Cargamos los pdf's
+def load_pdfs(pdf_path):
     
-    # Limpiar el texto: eliminar caracteres innecesarios
-    texto_completo = texto_completo.replace('\n', ' ')  # Reemplazar saltos de línea por espacio
-    texto_completo = texto_completo.replace("17_10_2024_Introducción a SAP SD.pdf:2:1", "")  # Depende de cada caso (esto para el enunciado de la práctica)
-    return texto_completo
+    try:
+        if not os.path.isdir(pdf_path):
+                raise file_not_found_error(f"El directorio {pdf_path} no se encuentra.")
+    except file_not_found_error as e:
+                print(str(e))
+                sys.exit(1)
 
+    documentos_pdf = []
+    for filename in os.listdir(pdf_path):
+        if filename.endswith('.pdf'):
+            file_path = os.path.join(pdf_path, filename)
+            try:
+                reader = PdfReader(file_path)
+                todo_documento = " ".join([pagina.extract_text() for pagina in reader.pages])
+                documentos_pdf.append(todo_documento.replace("\n", " ").strip()) 
+            except Exception as e:
+                print(f"Error al procesar {filename}: {str(e)}")
+    try:
+        if not documentos_pdf:
+            raise existe_directorio_sin_ficheros(f"No hay ficheros que cargar")
+    except existe_directorio_sin_ficheros as e:
+            print(str(e))
+            sys.exit(1)
 
-# Dividir el texto en chunks
-def split_text_into_chunks(texto_completo, chunk_size=200, chunk_overlap=50):
-    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-    chunks = splitter.split_text(texto_completo)
-    print(f"Número de chunks creados: {len(chunks)}")
+    return "\n\n\n".join(documentos_pdf)
+
+# Dividimos el texto de los pdf's en trozos
+def split_text_into_chunks(documentos_pdf, chunk_size=750, chunk_overlap=250):
+    
+    splitter = RecursiveCharacterTextSplitter(separators=["\n\n", "\n", ". ", " ", ""],chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    chunks = splitter.split_text(documentos_pdf)
+    print("Troceando ficheros ...")
     return chunks
 
-
-# Crear o cargar la base de datos Chroma
-def create_or_load_chroma_db(chunks, persist_directory="./chroma_db"):
-    # Crear documentos a partir de los chunks
-    documents = [Document(page_content=chunk) for chunk in chunks]
-
-    # Crear embeddings
-    embeddings = OllamaEmbeddings(model="nomic-embed-text", show_progress=True)
-
-    # Crear y persistir la base de datos Chroma si no existe
-    chroma_db = Chroma.from_documents(documents, embeddings, persist_directory=persist_directory, collection_name='local_rag_db')
-    return chroma_db
-
-
-# Recuperar documentos relevantes de la base de datos Chroma
-def get_relevant_documents(question, vector_db):
-    retriever = vector_db.as_retriever()
-    docs = retriever.invoke(question)
-    # print(f"Documents fetched from database: {len(docs)}")
-    print(f"Número de documentos relevantes recuperados: {len(docs)}")
-    return docs
-
-
-# Generar respuesta usando Ollama
-def generate_answer(docs, question, model='llama3'):
-    context = "\n\n".join(doc.page_content for doc in docs)
+def configure_and_create_collection_chroma():
     
-    # Crear un prompt RAG
-    formatted_prompt = f"""Answer the question based ONLY on the following context:
-    {context}
-    Question: {question}
-    """
+    embedding_function = embedding_functions.OllamaEmbeddingFunction(
+        url="http://localhost:11434/api/embeddings",
+        model_name="nomic-embed-text",
+    )
+
+    try:
+        chroma_client = chromadb.HttpClient(
+            host="localhost",
+            port=8000,
+            settings=chromadb.config.Settings(
+                persist_directory="./chroma_db",
+            )
+        )
+    except ValueError:
+        print("Error: No se puede conectar al servidor de Chroma. Asegúrate de que el contenedor Docker esté en ejecución.")
+        sys.exit(1)
+
+    # Buscamos los nombres de las colecciones en chroma
+    #collection_names = chroma_client.list_collections()
+
+    # Buscamos si ya existe la colección creada en otras ejecuciones previamente y la borramos
+    #collection_name = chroma_client.get_collection(name="local_rag_db", embedding_function=embedding_function)
+    #for collection_name in collection_names:
+        # chroma_client.delete_collection(name=collection_name)
     
-    # Llamar a la API de Ollama para generar la respuesta
-    ollama_host_url = "http://localhost:11434"
-    client = Client(host=ollama_host_url)
-    response = client.chat(model=model, messages=[{'role': 'user', 'content': formatted_prompt}])
-    return response['message']['content']
+    # Generamos los embeddings
+    # create_collection
+    collection = chroma_client.create_collection(
+        name="my_rag_db", 
+        embedding_function=embedding_function,
+        get_or_create= True,
+        metadata={
+            "hnsw:space": "cosine", 
+            "hnsw:search_ef": 300, 
+            "description": "Colección ChromaDB usando Ollama"
+        }    
+    )
 
+    print(f"Configurando y creando la colección en ChromaDB ...")
+    return collection
 
-# Función principal
+def add_data_to_ChromaDB(chunks, collection):
+
+    collection.add(
+        documents=chunks,
+        ids=[f"id{i}" for i in range(len(chunks))],
+    )
+
+    print("Datos añadidos a la colección")
+
+    return collection
+
+# Recuperamos los documentos relevantes de la base de datos ChromaDB
+def get_relevant_documents(question, collection):
+
+    results = collection.query(
+        query_texts=[question],
+        n_results=10,
+    )
+    
+    print(f"Buscando los trozos más relevantes ...")
+
+    return results['documents'][0]
+
+def my_rag(results, question: str, model='llama3.2'):
+
+    if not results:
+        print(f"Lo siento, no tengo suficiente información para responder a esta pregunta.")
+    
+    prompt_template= PromptTemplate(
+        template="""
+        Utiliza la siguiente información para responder a la pregunta. Si la información no está en el contexto, responde "Lo siento, no tengo suficiente información para responder a esta pregunta.":
+
+        Contexto: {context}
+        ---
+
+        Pregunta: {question}
+        Respuesta: Basa tu respuesta en "Según el contexto proporcionado," además de añadir la información más relevante.
+        """,
+        input_variables=["context", "question"]
+    )
+
+    context = "\n\n---\n\n".join(results)
+
+    formatted_prompt = prompt_template.format(context=context, question=question)
+    
+    # Generamos la respuesta usando el formatted_prompt
+    response = ollama.generate(model=model, prompt=formatted_prompt,
+        options={
+            "temperature": 0.2,
+            "top_k": 10,
+            'num_predict': 1024,
+            "top_p": 0.8
+        }
+    )
+
+    print(f"Generando la respuesta ...")
+    
+    return response['response']
+
 def main():
+
+    documentos_pdf = load_pdfs(pdf_path)
+    print("Documentos pdf procesados correctamente")
+
+    chunks = split_text_into_chunks(documentos_pdf)
+
+    # Llamamos a Chroma para crear los embeddings y la colección
+    collection = configure_and_create_collection_chroma()
+
+    # Cargamos la collección en ChromaDB
+    data_in_chroma = add_data_to_ChromaDB(chunks, collection)
+
+    # Parseamos la pregunta
     parser = argparse.ArgumentParser(description="Consulta el PDF procesado.")
-    parser.add_argument('pregunta', type=str, help="Pregunta para el LLM.")
+    parser.add_argument("question", type=str, help="Pregunta a responder")
     args = parser.parse_args()
+    question = args.question
 
-    # Path del PDF
-    pdf_path = "Enunciado_TIC_SAP.pdf"
-    
-    # Cargar el contenido del PDF
-    texto_completo = load_pdf(pdf_path)
-
-    # Dividir el texto en chunks
-    chunks = split_text_into_chunks(texto_completo)
-
-    # Crear o cargar la base de datos de Chroma
-    chroma_db = create_or_load_chroma_db(chunks)
-
-    # Cargar la base de datos Chroma
-    vector_db = Chroma(persist_directory="./chroma_db", embedding_function=OllamaEmbeddings(model="nomic-embed-text", base_url="http://localhost:11434", show_progress=True), collection_name="local_rag_db")
-
-    # Obtener documentos relevantes
-    docs = get_relevant_documents(args.pregunta, vector_db)
-
-    # Generar la respuesta
-    answer = generate_answer(docs, args.pregunta)
-
-    # Mostrar la respuesta
-    print(f"Answer: {answer}")
+    if question:    
+        # Obtenemos los documentos relevantes
+        docs = get_relevant_documents(question, data_in_chroma)
+        # Generamos la respuesta
+        answer = my_rag(docs, question)
+        print(f"Respuesta: {answer}")
 
 if __name__ == "__main__":
     main()
