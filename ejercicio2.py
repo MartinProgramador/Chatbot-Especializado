@@ -10,7 +10,7 @@ import chromadb
 import chromadb.utils.embedding_functions as embedding_functions
 
 # Configuramos la API de Gemini
-GOOGLE_API_KEY = "AIzaSyAWMmCjoPifpofExi5yv8rSphLidNCqxF4"
+GOOGLE_API_KEY = ""
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
