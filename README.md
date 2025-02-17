@@ -138,7 +138,7 @@ LLaMA 3 responde con información irrelevante -> Modificar el formatted_prompt p
 -	pip install Transformers
 -	pip install pinecone-client
 
-Modificar la ruta para cargar los documentos: **variable (pdf_path)** del fichero *main_pinecone.py*
+Modificar la ruta para cargar los documentos: **variable (pdf_path)** del fichero *ejercicio_pinecone.py*
 
 2.	Para poder ejecutar este ejercicio necesitamos disponer de la *API_KEY* de *Pinecone*, para ello tenemos que ir al enlace: https://docs.pinecone.io/guides/get-started/quickstart  y configurarla en el apartado “Get an-API Key”. Con esto ya tendremos funcionando a *Pinecone* como BD vectorial en la nube.
 
@@ -147,7 +147,7 @@ Modificar la ruta para cargar los documentos: **variable (pdf_path)** del ficher
 -	Modificar los parámetros “chunk_size” y “chunk_overlap”, para modificar el tamaño de cada trozo y su solapamiento, en la función “split_text_into_chunks”
 -	Modificar tanto el número de resultados relevantes (n_results) así como al generar la respuesta (temperatura, top_k,num_predict y top_p) y ver cómo poder simular todo lo que se ha probado para conseguir un resultado óptimo y que así se ha reflejado en la memoria.
 
-Para ejecutarlo por terminal sería suficiente, con poner: *python3 ejercicio2_pinecone.py “pregunta”*
+Para ejecutarlo por terminal sería suficiente, con poner: *python3 ejercicio_pinecone.py “pregunta”*
 
 ### 💻 Ejercicio 3: Parte Opcional
 1.	Instalar las siguientes dependencias:
