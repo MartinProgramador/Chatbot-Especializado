@@ -77,7 +77,6 @@ Para ejecutarlo por terminal sería suficiente, con poner: *python3 ejercicio2.p
 > - Abrir un terminal de Docker y ejecutar: *docker run -p 8000:8000 chromadb/chroma*
 
 ### 💻 Ejercicio 1: Parte Opcional
-
 1.	Instalar las siguientes dependencias:
 -	pip install beautifulsoup4
 -	pip install langchain-chroma
@@ -85,7 +84,42 @@ Para ejecutarlo por terminal sería suficiente, con poner: *python3 ejercicio2.p
 
 2.	Modificar la ruta **variable (htlm_path)** del archivo *chatbot_telegram.py* para que los mensajes del archivo HTML se carguen correctamente.
 
-4.	Para reproducir los experimentos realizados debemos de:
+3. Ejecutar el servidor de embeddings y ChromaDB
+   - Iniciar Ollama en una terminal:
+     ollama serve
+
+4. Ejecutar el chatbot con una consulta
+   python chatbot_telegram.py *“pregunta”*
+
+Para reproducir los experimentos y optimizar los resultados, puede modificar los siguientes parámetros:
+1️⃣ Ajustar el tamaño y solapamiento de los fragmentos (chunks)
+Ubicado en split_text_into_chunks() en chatbot_telegram.py:
+def split_text_into_chunks(texto_completo, chunk_size=150, chunk_overlap=50):
+- chunk_size: Controla el tamaño de cada fragmento de texto almacenado en ChromaDB.
+- chunk_overlap: Define el solapamiento entre fragmentos para mejorar la recuperación de información.
+Pruebe diferentes valores y analice cómo afecta la precisión de las respuestas.
+
+2️⃣ Ajustar la cantidad de documentos recuperados de ChromaDB:
+En get_relevant_documents(), puedes cambiar el número de fragmentos relevantes que se recuperan al hacer una consulta:
+retriever = vector_db.as_retriever(search_kwargs={"k": 5})
+- k: Número de fragmentos que se recuperan para generar la respuesta.
+Reducir k puede acelerar la respuesta, pero puede perder información relevante.
+
+3️⃣ Ajustar la generación de respuestas con LLaMA 3:
+En generate_answer(), se pueden modificar los parámetros del prompt enviado al modelo:
+formatted_prompt = f"""Answer the question based ONLY on the following context:
+{context}
+Question: {question}
+"""
+Cambiar la estructura del prompt puede mejorar la coherencia de las respuestas.
+
+🛠 Posibles Errores y Soluciones
+Problema	Solución
+El chatbot no encuentra información relevante	-> Ajustar chunk_size y chunk_overlap para mejorar la segmentación del texto.
+Error al procesar el archivo HTML ->	Verificar la estructura del HTML y que los elementos (from_name, text, date) estén correctamente extraídos.
+ChromaDB no devuelve fragmentos precisos ->	Ajustar k en la función de recuperación de documentos.
+LLaMA 3 responde con información irrelevante -> Modificar el formatted_prompt para que dependa más del contexto.
+
 
 
 ### 💻 Ejercicio 2: Parte Opcional
