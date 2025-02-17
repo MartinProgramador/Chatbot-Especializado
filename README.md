@@ -159,13 +159,16 @@ Para ejecutarlo por terminal sería suficiente, con poner: *python3 ejercicio_pi
 ### 💻 Ejercicio 3: Parte Opcional
 1.	Instalar las siguientes dependencias:
 
--	pip install langchain-google-genai
--	pip install Pillow
+Para poder ejecutar este ejercicio necesitamos disponer de la *API_KEY* de *Google*, para ello tenemos que ir al enlace: https://ai.google.dev/gemini-api/docs/api-key?hl=es-419 y configurarla. A continuación instalar la dependencias, como se indica a continuación:
+
+-	pip install google-generativeai
+-	pip install argparse
 -	pip install easyocr
 
-Proporcionar una ruta válida para la **variable (image_path)**, en el archivo *ejercicio2_versionimg* que haga referencia a un archivo de imagen en el sistema del usuario, es decir que ese archivo exista en la ubicación especificada. Además la imagen debe estar en un formato que *EasyOcr* pueda leerlo (como .jpg, .png, etc…)
+Proporcionar una ruta válida para la **variable (img_path)**, en el archivo *ejercicio_imagen* que haga referencia a un archivo que contenga alguna imagen en el sistema del usuario, es decir que ese archivo exista en la ubicación especificada. Además la imagen debe estar en un formato que *EasyOcr* pueda leerlo (como .jpg, .png, etc…)
 
 > [!NOTE]
 > El usuario necesitará tener permisos de lectura para el/los archivo/s de imagen.
 
-2.	Para reproducir los experimentos realizados debemos de:
+2.	Para reproducir los experimentos realizados debemos de poner: *python3 "nombre_imagen" ejercicio_imagen.py “pregunta”*
+
