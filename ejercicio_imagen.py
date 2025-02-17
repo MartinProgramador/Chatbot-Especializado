@@ -1,32 +1,68 @@
 import os
+import sys
 import argparse
+from PyPDF2 import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.docstore.document import Document
-from langchain_community.vectorstores import Chroma  # Importación actualizada
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+import google.generativeai as genai
 from langchain_core.prompts import PromptTemplate
-from PIL import Image
-import easyocr  
+import chromadb
+import chromadb.utils.embedding_functions as embedding_functions
+import easyocr
+
 
 # Configurar la API de Gemini
-GOOGLE_API_KEY = "AIzaSyC1LJJ0WDktyDSA_NpPopOZbYRgvlCf4xM"  # Reemplaza con tu clave de API de Google
+GOOGLE_API_KEY = ""
+genai.configure(api_key=GOOGLE_API_KEY)
 
-PROMPT_TEMPLATE = """
-Basado en el contexto proporcionado, responde a la siguiente pregunta. Si la información no está en el contexto, di "No tengo suficiente información para responder a esta pregunta.":
-    
-Contexto: {context}
-    
-Pregunta: {question}
-Respuesta:
-"""
+img_path = "."
 
-# Función para extraer texto de la imagen usando EasyOCR
-def extract_text_from_image_easyocr(image_path):
+class error_procesar_ficheros(Exception):
+    def __init__(self, parametro1):
+        self.parametro1 = parametro1
+
+class existe_directorio_sin_ficheros(Exception):
+    def __init__(self, parametro1):
+        self.parametro1 = parametro1
+
+class file_not_found_error(Exception):
+    def __init__(self, parametro1):
+        self.parametro1 = parametro1
+
+# Extraer texto de PDFs
+def load_pdfs(pdf_path):
+    try:
+        if not os.path.isdir(pdf_path):
+            raise file_not_found_error(f"El directorio {pdf_path} no se encuentra.")
+    except file_not_found_error as e:
+        print(str(e))
+        sys.exit(1)
+    
+    documentos_pdf = []
+    for filename in os.listdir(pdf_path):
+        if filename.endswith('.pdf'):
+            file_path = os.path.join(pdf_path, filename)
+            try:
+                reader = PdfReader(file_path)
+                todo_documento = " ".join([pagina.extract_text() for pagina in reader.pages if pagina.extract_text()])
+                documentos_pdf.append(todo_documento.replace("\n", " ").strip())
+            except Exception as e:
+                print(f"Error al procesar {filename}: {str(e)}")
+    
+    try:
+        if not documentos_pdf:
+            raise existe_directorio_sin_ficheros(f"No hay ficheros que cargar")
+    except existe_directorio_sin_ficheros as e:
+        print(str(e))
+        sys.exit(1)
+    
+    return "\n\n\n".join(documentos_pdf)
+
+# Extraer texto de imágenes usando EasyOCR
+def extract_text_from_image(image_path):
     if not os.path.exists(image_path):
         raise FileNotFoundError(f"El archivo {image_path} no existe.")
     try:
-        # Inicializar el lector de EasyOCR para español
-        reader = easyocr.Reader(['es', 'en'])  # Puedes agregar más idiomas si es necesario
+        reader = easyocr.Reader(['es', 'en'])
         result = reader.readtext(image_path, detail=0, paragraph=True)
         texto = ' '.join(result)
         return texto.replace("\n", " ").strip()
@@ -34,83 +70,135 @@ def extract_text_from_image_easyocr(image_path):
         raise ValueError(f"No se pudo extraer texto de la imagen: {e}")
 
 # Dividir el texto en chunks
-def split_text_into_chunks(texto_completo, chunk_size=300, chunk_overlap=70):
-    splitter = RecursiveCharacterTextSplitter(
-        separators=["\n\n", "\n", ". ", " ", ""],
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap
-    )
-    chunks = splitter.split_text(texto_completo)
+def split_text_into_chunks(documentos_pdf, chunk_size=1000, chunk_overlap=500):
+    splitter = RecursiveCharacterTextSplitter(separators=["\n\n", "\n", ". ", " ", ""], chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    chunks = splitter.split_text(documentos_pdf)
+    print("Troceando documentos ...")
     return chunks
 
-# Procesar el texto y generar embeddings
-def create_or_load_chroma_db(chunks, persist_directory="./path_to_chroma_db"):
-    documents = [Document(page_content=chunk) for chunk in chunks]
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=GOOGLE_API_KEY)
-    vector_store = Chroma.from_documents(documents, embeddings, persist_directory=persist_directory)
-    return vector_store
+# Configurar y crear la colección en ChromaDB
+def configure_and_create_collection_chroma():
+    embedding_function = embedding_functions.GoogleGenerativeAiEmbeddingFunction(
+        api_key=GOOGLE_API_KEY,
+        model_name="models/embedding-001"
+    )
 
-# Recuperar documentos relevantes
-def get_relevant_documents(question, vector_db):
-    retriever = vector_db.as_retriever()
-    docs = retriever.invoke(question)
-    return docs
+    chroma_client = chromadb.Client(
+        chromadb.config.Settings(
+            persist_directory="./path_to_chroma_db",
+        )
+    )
 
-def my_rag(docs, question: str):
-    context = "\n\n---\n\n".join([doc.page_content for doc in docs])
+    try:
+        chroma_client.delete_collection(name="local_rag_db")
+    except ValueError:
+        pass
+
+    collection = chroma_client.get_or_create_collection(
+        name="local_rag_db", 
+        embedding_function=embedding_function,
+        metadata={"hnsw:space": "cosine", "hnsw:search_ef": 300}
+    )
+
+    print(f"Configurando y creando la colección en ChromaDB...")
+    return collection
+
+# Añadir datos a ChromaDB
+def add_data_to_ChromaDB(chunks, collection):
+    collection.add(
+        documents=chunks,
+        ids=[f"id{i}" for i in range(len(chunks))],
+    )
+
+    print("Datos añadidos a la colección")
+    return collection
+
+# Recuperar documentos relevantes de ChromaDB
+def get_relevant_documents(question, collection):
+    results = collection.query(
+        query_texts=[question],
+        n_results=10
+    )
+
+    print(f"Buscando los trozos más relevantes...")
+    return results['documents'][0]
+
+# Generar respuesta usando Gemini
+def my_rag(results, question: str):
+    if not results:
+        print(f"Lo siento, no tengo suficiente información para responder a esta pregunta.")
+        return ""
 
     prompt_template = PromptTemplate(
         template="""
-        Si la información no está en el contexto, responde "No tengo suficiente información para responder a esta pregunta.":
-    
+        Si la información no está en el contexto, responde "Lo siento, no tengo suficiente información para responder a esta pregunta.":
+
         Contexto: {context}
         ---
-    
+
         Pregunta: {question}
-        Respuesta: Basado en el contexto proporcionado,
+        Respuesta: Según el contexto,
         """,
         input_variables=["context", "question"]
     )
 
+    context = "\n\n---\n\n".join(results)
     formatted_prompt = prompt_template.format(context=context, question=question)
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", google_api_key=GOOGLE_API_KEY, temperature=0, max_tokens=1024)
-    response_text = llm.invoke(formatted_prompt)
-    return response_text.content
+
+    genai.configure(api_key=GOOGLE_API_KEY)
+    llm = genai.GenerativeModel(model_name='gemini-1.5-pro')
+
+    response_text = llm.generate_content(
+        formatted_prompt,
+        generation_config=genai.types.GenerationConfig(
+            temperature=0.3,
+            max_output_tokens=1024,
+            top_k=4,
+        )
+    )
+
+    print(f"Generando la respuesta...")
+    return response_text.text
 
 # Flujo principal
 def main():
-    parser = argparse.ArgumentParser(description="Consulta una imagen procesada.")
-    parser.add_argument("image_path", type=str, help="Ruta a la imagen")
+    parser = argparse.ArgumentParser(description="Consulta sobre documentos procesados (PDF o imagen).")
+    parser.add_argument("file_path", type=str, help="Ruta al PDF o imagen")
     parser.add_argument("question", type=str, help="Pregunta a responder")
     args = parser.parse_args()
 
-    # Extraer texto de la imagen usando EasyOCR
-    texto_completo = extract_text_from_image_easyocr(args.image_path)
-    if not texto_completo:
-        print("No se pudo extraer texto de la imagen.")
+    # Extraer texto del archivo (PDF o imagen)
+    if args.file_path.lower().endswith(".pdf"):
+        print("Procesando archivo PDF...")
+        documentos_pdf = load_pdfs(os.path.dirname(args.file_path))
+    elif args.file_path.lower().endswith((".png", ".jpg", ".jpeg")):
+        print("Procesando imagen...")
+        documentos_pdf = extract_text_from_image(args.file_path)
+    else:
+        print("Formato de archivo no soportado. Usa PDF o imagen (PNG, JPG, JPEG).")
+        sys.exit(1)
+
+    if not documentos_pdf:
+        print("No se pudo extraer texto del archivo.")
         return
 
     # Dividir el texto en chunks
-    chunks = split_text_into_chunks(texto_completo)
+    chunks = split_text_into_chunks(documentos_pdf)
 
-    # Crear o cargar la base de datos de vectores
-    persist_directory = "./path_to_chroma_db"
-    vector_db = create_or_load_chroma_db(chunks, persist_directory=persist_directory)
+    # Configurar y crear la colección en ChromaDB
+    collection = configure_and_create_collection_chroma()
+
+    # Cargar la colección en ChromaDB
+    data_in_chroma = add_data_to_ChromaDB(chunks, collection)
 
     # Obtener documentos relevantes
-    docs = get_relevant_documents(args.question, vector_db)
+    docs = get_relevant_documents(args.question, data_in_chroma)
 
-    if not docs:
-        print("No se encontraron documentos relevantes.")
-        return
-
-    # Generar la respuesta
+    # Generar respuesta
     answer = my_rag(docs, args.question)
 
     # Mostrar la respuesta
     print(f"Respuesta: {answer}")
-    sources = os.path.basename(args.image_path)
-    print(f"Origen de datos: {sources}")
 
 if __name__ == "__main__":
     main()
