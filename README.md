@@ -94,6 +94,7 @@ Para ejecutarlo por terminal sería suficiente, con poner: *python3 ejercicio2.p
 Para reproducir los experimentos y optimizar los resultados, puede modificar los siguientes parámetros:
 
 1️⃣ Ajustar el tamaño y solapamiento de los fragmentos (chunks)
+
 Ubicado en split_text_into_chunks() en chatbot_telegram.py:
 def split_text_into_chunks(texto_completo, chunk_size=150, chunk_overlap=50):
 - chunk_size: Controla el tamaño de cada fragmento de texto almacenado en ChromaDB.
@@ -101,12 +102,14 @@ def split_text_into_chunks(texto_completo, chunk_size=150, chunk_overlap=50):
 Pruebe diferentes valores y analice cómo afecta la precisión de las respuestas.
 
 2️⃣ Ajustar la cantidad de documentos recuperados de ChromaDB:
+
 En get_relevant_documents(), puedes cambiar el número de fragmentos relevantes que se recuperan al hacer una consulta:
 retriever = vector_db.as_retriever(search_kwargs={"k": 5})
 - k: Número de fragmentos que se recuperan para generar la respuesta.
 Reducir k puede acelerar la respuesta, pero puede perder información relevante.
 
 3️⃣ Ajustar la generación de respuestas con LLaMA 3:
+
 En generate_answer(), se pueden modificar los parámetros del prompt enviado al modelo:
 formatted_prompt = f"""Answer the question based ONLY on the following context:
 {context}
@@ -117,8 +120,11 @@ Cambiar la estructura del prompt puede mejorar la coherencia de las respuestas.
 🛠 Posibles Errores y Soluciones:
 
 El chatbot no encuentra información relevante	-> Ajustar chunk_size y chunk_overlap para mejorar la segmentación del texto.
+
 Error al procesar el archivo HTML ->	Verificar la estructura del HTML y que los elementos (from_name, text, date) estén correctamente extraídos.
+
 ChromaDB no devuelve fragmentos precisos ->	Ajustar k en la función de recuperación de documentos.
+
 LLaMA 3 responde con información irrelevante -> Modificar el formatted_prompt para que dependa más del contexto.
 
 
