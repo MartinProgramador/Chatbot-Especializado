@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/static/estilos.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="sidebar">
+        <button id="upload-pdf-btn" title="Subir PDFs" multiple>
+          <i class="fa fa-folder"></i>
+        </button>
+        <input
+          id="file-input"
+          type="file"
+          accept="application/pdf"
+          style="display: none" />
+        <button id="upload-image-btn" title="Subir Imagen">
+          <i class="fa fa-camera"></i>
+        </button>
+        <input
+          id="file-input2"
+          type="file"
+          accept="image/jpeg, image/png, image/jpg"
+          style="display: none" />
+        <div class="custom_select">
+          <select id="engine">
+            <div class="select-items">
+              <option value="ollama_chroma">Ollama – Chroma</option>
+              <option value="ollama_pinecone">Ollama – Pinecone</option>
+              <option value="gemini">Gemini</option>
+            </div>
+          </select>
+        </div>
+      </div>
+
+      <!-- Contenedor del chat en el centro -->
+      <div class="chat-container">
+        <button class="clear-history" id="clear-history">
+          <i class="fa fa-trash"></i> Borrar
+        </button>
+        <h2>Chat SAP</h2>
+        <div class="messages" id="messages"></div>
+        <div class="input-container">
+          <form id="chat-form">
+            <input
+              type="text"
+              name="question"
+              id="question"
+              placeholder="Escribe tu pregunta..."
+              required
+              autofocus />
+            <button type="submit" id="enviar-btn">
+              <i class="fa fa-send"></i> Enviar
+            </button>
+            <!-- <input type="submit" class="fa fa-send" value="Enviar" /> -->
+            <!-- <input type="submit" value="Enviar" /> -->
+          </form>
+        </div>
+      </div>
+
+      <!-- Contenedor a la derecha para la lista de PDFs procesados -->
+      <div class="pdf-list-container">
+        <h3>PDFs procesados</h3>
+        <ul id="pdf-list"></ul>
+      </div>
+    </div>
+
+    <!-- Inputs ocultos para seleccionar archivos -->
+    <input
+      type="file"
+      id="pdf-file-input"
+      class="file-input"
+      accept="application/pdf"
+      multiple />
+    <input
+      type="file"
+      id="image-file-input"
+      class="file-input"
+      accept="image/*" />
+
+    <script>
+      // Referencias a elementos
+      const messagesContainer = document.getElementById("messages");
+      const questionInput = document.getElementById("question");
+      const chatForm = document.getElementById("chat-form");
+      const clearHistoryBtn = document.getElementById("clear-history");
+
+      const uploadPdfBtn = document.getElementById("upload-pdf-btn");
+      const pdfFileInput = document.getElementById("pdf-file-input");
+
+      const uploadImageBtn = document.getElementById("upload-image-btn");
+      const imageFileInput = document.getElementById("image-file-input");
+
+      const pdfListUl = document.getElementById("pdf-list");
+
+      // Función para agregar burbuja de mensaje del usuario
+      function addUserBubble(label, text) {
+        const userBubble = document.createElement("div");
+        userBubble.className = "chat-bubble user";
+        userBubble.innerHTML = `<strong>${label}:</strong> ${text}`;
+        messagesContainer.appendChild(userBubble);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+
+      // Función para agregar burbuja de mensaje del bot, opcionalmente con un id para luego actualizarla
+      function addBotBubble(label, text, id = null) {
+        const botBubble = document.createElement("div");
+        botBubble.className = "chat-bubble bot";
+        if (id) {
+          botBubble.id = id;
+        }
+        botBubble.innerHTML = `<strong>${label}:</strong> ${text}`;
+        messagesContainer.appendChild(botBubble);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+
+      // Función para actualizar una burbuja de bot ya creada
+      function updateBotBubble(id, label, text) {
+        const bubble = document.getElementById(id);
+        if (bubble) {
+          bubble.innerHTML = `<strong>${label}:</strong> ${text}`;
+        } else {
+          addBotBubble(label, text);
+        }
+      }
+
+      // --- Envío de pregunta escrita ---
+      chatForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const question = questionInput.value.trim();
+        if (!question) return;
+
+        addUserBubble("Tú", question);
+        questionInput.value = "";
+
+        const engine = document.getElementById("engine").value;
+
+        // Llamar al backend
+        const response = await fetch("/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question, engine }),
+        });
+        const data = await response.json();
+
+        if (data.answer) {
+          addBotBubble("Bot", data.answer);
+        } else {
+          addBotBubble("Bot", "No se obtuvo respuesta del servidor.");
+        }
+      });
+
+      // --- Borrar historial ---
+      clearHistoryBtn.addEventListener("click", async () => {
+        await fetch("/clear_history", { method: "POST" });
+        messagesContainer.innerHTML = "";
+        pdfListUl.innerHTML = "";
+      });
+
+      // --- Subir PDFs ---
+      uploadPdfBtn.addEventListener("click", () => {
+        pdfFileInput.click();
+      });
+
+      pdfFileInput.addEventListener("change", async () => {
+        if (!pdfFileInput.files.length) return;
+
+        const filenames = Array.from(pdfFileInput.files)
+          .map((f) => f.name)
+          .join(", ");
+        addUserBubble("Tú (PDF)", `He subido estos archivos: ${filenames}`);
+
+        const formData = new FormData();
+        for (const file of pdfFileInput.files) {
+          formData.append("files", file);
+        }
+
+        const response = await fetch("/upload_pdfs", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await response.json();
+
+        if (data.files && data.files.length) {
+          data.files.forEach((filename) => addPDFtoList(filename));
+          addBotBubble(
+            "Bot (PDF)",
+            "PDFs subidos correctamente: " + data.files.join(", ")
+          );
+        } else {
+          addBotBubble(
+            "Bot (PDF)",
+            "No se subió ningún PDF o error en el servidor."
+          );
+        }
+
+        pdfFileInput.value = "";
+      });
+
+      // --- Subir imágenes ---
+      uploadImageBtn.addEventListener("click", () => {
+        imageFileInput.click();
+      });
+
+      imageFileInput.addEventListener("change", async () => {
+        if (!imageFileInput.files.length) return;
+
+        const file = imageFileInput.files[0];
+        const question = questionInput.value.trim() || "(Sin pregunta)";
+
+        addUserBubble(
+          "Tú (imagen)",
+          `He subido la imagen '${file.name}' con la pregunta: ${question}`
+        );
+
+        // Mostrar burbuja temporal de "Procesando imagen..."
+        const tempBubbleId = "temp-img-bubble-" + Date.now();
+        addBotBubble("Bot (imagen)", "Procesando imagen...", tempBubbleId);
+
+        const formData = new FormData();
+        formData.append("image", file);
+        formData.append("question", question);
+
+        try {
+          const response = await fetch("/upload_image", {
+            method: "POST",
+            body: formData,
+          });
+          const data = await response.json();
+          let botMsg = "";
+          if (data.answer && data.extracted_text) {
+            botMsg = `Respuesta: ${data.answer}\n\nTexto extraído: ${data.extracted_text}`;
+          } else {
+            botMsg =
+              data.answer ||
+              data.extracted_text ||
+              "Imagen procesada, sin respuesta.";
+          }
+          updateBotBubble(tempBubbleId, "Bot (imagen)", botMsg);
+        } catch (err) {
+          updateBotBubble(
+            tempBubbleId,
+            "Bot (imagen)",
+            "Error procesando la imagen."
+          );
+        }
+
+        questionInput.value = "";
+        imageFileInput.value = "";
+      });
+
+      // Función para agregar PDFs a la lista lateral
+      function addPDFtoList(filename) {
+        const li = document.createElement("li");
+        li.textContent = filename;
+        pdfListUl.appendChild(li);
+      }
+    </script>
+  </body>
+</html>
