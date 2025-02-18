@@ -25,11 +25,11 @@ global_documents = []  # Acumulamos los textos extraídos de los PDFs (y eventua
 pdf_filenames = []
 
 # Configura tus API Keys para Google Generative AI y Pinecone
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "AIzaSyA2RLW77RU1fLy8Q_M1QLBtUs8Ts9TQWXk")
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "") # tu API aqui 
 genai.configure(api_key=GOOGLE_API_KEY)
 
-PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY", "pcsk_3LLYon_qLRcnPNE42MCHaCmUMg8DRctqJNJwtQfjDsLPhSzp5CPfbvvUW9qHfJ7wJP8Lo")
-PINECONE_ENVIRONMENT = os.environ.get("PINECONE_ENVIRONMENT", "us-east-1-aws")
+PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY", "") # tu API aqui 
+PINECONE_ENVIRONMENT = os.environ.get("PINECONE_ENVIRONMENT", "us-east-1-aws") 
 
 ### Funciones de utilidades
 
