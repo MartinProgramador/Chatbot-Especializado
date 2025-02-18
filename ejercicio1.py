@@ -52,14 +52,14 @@ def load_pdfs(pdf_path):
     return "\n\n\n".join(documentos_pdf)
 
 # Dividimos el texto de los pdf's en trozos
-def split_text_into_chunks(documentos_pdf, chunk_size=750, chunk_overlap=250):
+def split_text_into_chunks(documentos_pdf, chunk_size=900, chunk_overlap=350):
     
     splitter = RecursiveCharacterTextSplitter(separators=["\n\n", "\n", ". ", " ", ""],chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     chunks = splitter.split_text(documentos_pdf)
     print("Troceando ficheros ...")
     return chunks
 
-def configure_and_create_collection_chroma():
+def configure_and_create_collection_chroma(chunks):
     
     embedding_function = embedding_functions.OllamaEmbeddingFunction(
         url="http://localhost:11434/api/embeddings",
@@ -100,13 +100,10 @@ def configure_and_create_collection_chroma():
     )
 
     print(f"Configurando y creando la colección en ChromaDB ...")
-    return collection
 
-def add_data_to_ChromaDB(chunks, collection):
-
-    collection.add(
-        documents=chunks,
-        ids=[f"id{i}" for i in range(len(chunks))],
+    collection.upsert(
+       documents=chunks,
+       ids=[f"id{i}" for i in range(len(chunks))],   
     )
 
     print("Datos añadidos a la colección")
@@ -150,10 +147,11 @@ def my_rag(results, question: str, model='llama3.2'):
     # Generamos la respuesta usando el formatted_prompt
     response = ollama.generate(model=model, prompt=formatted_prompt,
         options={
-            "temperature": 0.2,
+            "temperature": 0.3,
             "top_k": 10,
-            'num_predict': 1024,
-            "top_p": 0.8
+            'num_predict': 2048,
+            "top_p": 0.9,
+            "num_ctx": 2048,
         }
     )
 
@@ -169,10 +167,10 @@ def main():
     chunks = split_text_into_chunks(documentos_pdf)
 
     # Llamamos a Chroma para crear los embeddings y la colección
-    collection = configure_and_create_collection_chroma()
+    collection = configure_and_create_collection_chroma(chunks)
 
     # Cargamos la collección en ChromaDB
-    data_in_chroma = add_data_to_ChromaDB(chunks, collection)
+    #data_in_chroma = add_data_to_ChromaDB(chunks, collection)
 
     # Parseamos la pregunta
     parser = argparse.ArgumentParser(description="Consulta el PDF procesado.")
@@ -182,7 +180,7 @@ def main():
 
     if question:    
         # Obtenemos los documentos relevantes
-        docs = get_relevant_documents(question, data_in_chroma)
+        docs = get_relevant_documents(question, collection)
         # Generamos la respuesta
         answer = my_rag(docs, question)
         print(f"Respuesta: {answer}")
