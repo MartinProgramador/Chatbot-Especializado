@@ -53,7 +53,7 @@ def load_pdfs(pdf_path):
 
 # Dividimos el texto de los pdf's en trozos
 def split_text_into_chunks(documentos_pdf, chunk_size=315, chunk_overlap=75):
-    # para textos grandes, como manuales, lo óptimo seria (chunk_size=315, chunk_overlap=350)
+    # para textos grandes, como manuales, lo óptimo seria (chunk_size=900, chunk_overlap=350)
     splitter = RecursiveCharacterTextSplitter(separators=["\n\n", "\n", ". ", " ", ""],chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     chunks = splitter.split_text(documentos_pdf)
     print("Troceando ficheros ...")
