@@ -9,64 +9,65 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
   </head>
   <body>
-    <div class="wrapper">
-      <div class="sidebar">
-        <button id="upload-pdf-btn" title="Subir PDFs" multiple>
-          <i class="fa fa-folder"></i>
-        </button>
-        <input
-          id="file-input"
-          type="file"
-          accept="application/pdf"
-          style="display: none" />
-        <button id="upload-image-btn" title="Subir Imagen">
-          <i class="fa fa-camera"></i>
-        </button>
-        <input
-          id="file-input2"
-          type="file"
-          accept="image/jpeg, image/png, image/jpg"
-          style="display: none" />
-        <div class="custom_select">
-          <select id="engine">
-            <div class="select-items">
-              <option value="ollama_chroma">Ollama – Chroma</option>
-              <option value="ollama_pinecone">Ollama – Pinecone</option>
-              <option value="gemini">Gemini</option>
-            </div>
-          </select>
+    <div class="main-container">
+      <div class="wrapper">
+        <div class="sidebar">
+          <button id="upload-pdf-btn" title="Subir PDFs" multiple>
+            <i class="fa fa-folder"></i>
+          </button>
+          <input
+            id="file-input"
+            type="file"
+            accept="application/pdf"
+            style="display: none" />
+          <button id="upload-image-btn" title="Subir Imagen">
+            <i class="fa fa-camera"></i>
+          </button>
+          <input
+            id="file-input2"
+            type="file"
+            accept="image/jpeg, image/png, image/jpg"
+            style="display: none" />
+          <div class="custom_select">
+            <select id="engine">
+              <div class="select-items">
+                <option value="ollama_chroma">Ollama – Chroma</option>
+                <option value="ollama_pinecone">Ollama – Pinecone</option>
+                <option value="gemini">Gemini</option>
+              </div>
+            </select>
+          </div>
         </div>
-      </div>
 
-      <!-- Contenedor del chat en el centro -->
-      <div class="chat-container">
-        <button class="clear-history" id="clear-history">
-          <i class="fa fa-trash"></i> Borrar
-        </button>
-        <h2>Chat SAP</h2>
-        <div class="messages" id="messages"></div>
-        <div class="input-container">
-          <form id="chat-form">
-            <input
-              type="text"
-              name="question"
-              id="question"
-              placeholder="Escribe tu pregunta..."
-              required
-              autofocus />
-            <button type="submit" id="enviar-btn">
-              <i class="fa fa-send"></i> Enviar
-            </button>
-            <!-- <input type="submit" class="fa fa-send" value="Enviar" /> -->
-            <!-- <input type="submit" value="Enviar" /> -->
-          </form>
+        <div class="chat-container">
+          <button class="clear-history" id="clear-history">
+            <i class="fa fa-trash"></i> Borrar
+          </button>
+          <h2>Chat SAP</h2>
+          <div class="messages" id="messages"></div>
+          <div class="input-container">
+            <form id="chat-form">
+              <input
+                type="text"
+                name="question"
+                id="question"
+                placeholder="Escribe tu pregunta..."
+                required
+                autofocus />
+              <button type="submit" id="enviar-btn">
+                <i class="fa fa-send"></i> Enviar
+              </button>
+              <!-- <input type="submit" class="fa fa-send" value="Enviar" /> -->
+              <!-- <input type="submit" value="Enviar" /> -->
+            </form>
+          </div>
         </div>
-      </div>
 
-      <!-- Contenedor a la derecha para la lista de PDFs procesados -->
-      <div class="pdf-list-container">
-        <h3>PDFs procesados</h3>
-        <ul id="pdf-list"></ul>
+        <!-- Contenedor a la derecha para la lista de PDFs procesados -->
+        <div class="pdf-list-container">
+          <h3>PDFs procesados</h3>
+          <ul id="pdf-list"></ul>
+        </div>
       </div>
     </div>
 
@@ -212,6 +213,15 @@
 
         const file = imageFileInput.files[0];
         const question = questionInput.value.trim() || "(Sin pregunta)";
+
+        if (!question) {
+          addUserBubble(
+            "Tú (imagen)",
+            `He subido la imagen '${file.name}' sin pregunta`
+          );
+          addBotBubble("Bot (imagen)", "No ha realizado ninguna pregunta");
+          return 0;
+        }
 
         addUserBubble(
           "Tú (imagen)",

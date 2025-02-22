@@ -18,14 +18,15 @@ from langchain.docstore.document import Document
 # Configuraciones globales
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
+
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-global_documents = []  # Acumulamos los textos extraídos de los PDFs (y eventualmente imágenes)
+global_documents = []  
 pdf_filenames = []
 
 # Configura tus API Keys para Google Generative AI y Pinecone
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "") # tu API aqui 
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "AIzaSyCe7QBbSALVwSssqFy6jrOvFpt411ymf84") # tu API aqui 
 genai.configure(api_key=GOOGLE_API_KEY)
 
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY", "") # tu API aqui 
@@ -62,31 +63,16 @@ def split_text_into_chunks(text, chunk_size=315, chunk_overlap=75):
     )
     return splitter.split_text(text)
 
-def split_text_into_chunks_gemini(text, chunk_size=1000, chunk_overlap=500):
-    splitter = RecursiveCharacterTextSplitter(
-        separators=["\n\n", "\n", ". ", " ", ""],
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap
-    )
-    return splitter.split_text(text)
-
-def split_text_into_chunks_ollama(text, chunk_size=900, chunk_overlap=350):
-    splitter = RecursiveCharacterTextSplitter(
-        separators=["\n\n", "\n", ". ", " ", ""],
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap
-    )
-    return splitter.split_text(text)
-
-
 ### Pipelines
 
 def pipeline_ollama_chroma(question, documents):
+            
     if not documents:
-        return "No hay documentos subidos."
+        return "No hay documentos PDF subidos en el directorio."
+    
     full_text = "\n\n\n".join(documents)
-    chunks = split_text_into_chunks_ollama(full_text, chunk_size=900, chunk_overlap=350)
-    # Configuramos la función de embeddings de Ollama
+    chunks = split_text_into_chunks(full_text, chunk_size=100, chunk_overlap=75)
+    
     embedding_function = embedding_functions.OllamaEmbeddingFunction(
         url="http://localhost:11434/api/embeddings",
         model_name="nomic-embed-text",
@@ -101,9 +87,8 @@ def pipeline_ollama_chroma(question, documents):
             )
         )
     except ValueError:
-        print("Error: No se puede conectar al servidor de Chroma. Asegúrate de que Docker esté en ejecución.")
-        sys.exit(1)
-
+        return("Error: No se puede conectar al servidor de Chroma. Asegúrate de que Docker esté en ejecución.")
+    
     collection = chroma_client.create_collection(
         name="my_rag_db", 
         embedding_function=embedding_function,
@@ -111,40 +96,54 @@ def pipeline_ollama_chroma(question, documents):
         metadata= {
             "hnsw:space": "cosine", 
             "hnsw:search_ef": 300, 
-            "description": "Colección ChromaDB usando Gemini"
+            "description": "Colección ChromaDB usando Ollama"
         }
     )
-    # Añadimos los chunks a la colección
-    collection.upsert(
-        documents=chunks,
-        ids=[f"id{i}" for i in range(len(chunks))]
-    )
-    # Consultamos la colección
-    results = collection.query(
-        query_texts=[question],
-        n_results=10,
-    )
-    relevant_docs = results['documents'][0]
-    prompt_template = PromptTemplate(
-        template="""Utiliza la siguiente información para responder a la pregunta. Si la información no está en el contexto, responde "Lo siento, no tengo suficiente información para responder a esta pregunta.":
 
-        Contexto: {context}
-        ---
-        Pregunta: {question}
-        Respuesta: Basa tu respuesta en "Según el contexto proporcionado," además de añadir la información más relevante.
-        """,
-        input_variables=["context", "question"]
-    )
-    context_str = "\n\n---\n\n".join(relevant_docs)
-    formatted_prompt = prompt_template.format(context=context_str, question=question)
-    response = ollama.generate(model='llama3.2', prompt=formatted_prompt,
-                                options={"temperature": 0.3, "top_k": 10, "num_predict": 2048, "top_p": 0.9, "num_ctx": 2048,})
-    return response.get('response', '')
+    try: 
+        if chunks:
+            collection.upsert(
+                documents=chunks,
+                ids=[f"id{i}" for i in range(1, len(chunks) + 1)]
+            )
+        else:
+            return ("No hay chunks para insertar en la colección.")
 
+        results = collection.query(
+            query_texts=[question],
+            n_results=10,
+        )
+        relevant_docs = results['documents'][0]
+        prompt_template = PromptTemplate(
+            template="""Utiliza la siguiente información para responder a la pregunta. Si la información no está en el contexto, responde "Lo siento, no tengo suficiente información para responder a esta pregunta.":
+
+            Contexto: {context}
+            ---
+            Pregunta: {question}
+            Respuesta: Basa tu respuesta en "Según el contexto proporcionado," además de añadir la información más relevante.
+            """,
+            input_variables=["context", "question"]
+        )
+        context_str = "\n\n---\n\n".join(relevant_docs)
+        formatted_prompt = prompt_template.format(context=context_str, question=question)
+        
+        response = ollama.generate(model='llama3.2', prompt=formatted_prompt,
+                                    options={"temperature": 0.3, "top_k": 10, "num_predict": 1024, "top_p": 0.9, "num_ctx": 1024})
+        
+        return response['response']
+    
+    finally:
+        try:
+            collection.delete(ids=[f"id{i}" for i in range(1, len(chunks) + 1)])
+            chroma_client.delete_collection(name="my_rag_db")
+        except Exception as e:
+            print(f"Se ha producido un error: {e}")
 
 def pipeline_ollama_pinecone(question, documents):
+            
     if not documents:
-        return "No hay documentos subidos."
+        return "No hay documentos PDF subidos en el directorio."
+    
     full_text = "\n\n\n".join(documents)
     chunks = split_text_into_chunks(full_text, chunk_size=315, chunk_overlap=75)
     # Usamos la nueva versión de HuggingFaceEmbeddings
@@ -173,140 +172,179 @@ def pipeline_ollama_pinecone(question, documents):
     prompt_template = PromptTemplate(
         template="""Utiliza la siguiente información para responder a la pregunta. Si la información no está en el contexto, responde "Lo siento, no tengo suficiente información para responder a esta pregunta.":
 
-Contexto: {context}
----
-Pregunta: {question}
-Respuesta: Según el contexto,""",
-        input_variables=["context", "question"]
+        Contexto: {context}
+        ---
+        Pregunta: {question}
+        Respuesta: Según el contexto,""",
+                input_variables=["context", "question"]
     )
     context_str = "\n\n---\n\n".join(docs)
     formatted_prompt = prompt_template.format(context=context_str, question=question)
     response = ollama.generate(model='llama3.2', prompt=formatted_prompt,
-                                options={"temperature": 0.3, "top_k": 4, "num_predict": 1024})
+                                options={"temperature": 0.3, "top_k": 4, "num_predict": 1024,  "top_p": 0.9})
+    
     return response.get('response', '')
 
 def pipeline_gemini(question, documents):
+    
     if not documents:
-        return "No hay documentos subidos."
+        return "No hay documentos PDF subidos en el directorio."
+    
     full_text = "\n\n\n".join(documents)
-    chunks = split_text_into_chunks_gemini(full_text, chunk_size=1000, chunk_overlap=500)
+    chunks = split_text_into_chunks(full_text, chunk_size=100, chunk_overlap=75)
     
     embedding_function = embedding_functions.GoogleGenerativeAiEmbeddingFunction(
-        api_key=GOOGLE_API_KEY,
-        model_name="models/embedding-001"
+            api_key=GOOGLE_API_KEY,
+            model_name="models/embedding-001"
     )
 
     try:
-        chroma_client = chromadb.HttpClient(
-            host="localhost",
-            port=8000,
-            settings=chromadb.config.Settings(
-                persist_directory="./chroma_db",
+            chroma_client = chromadb.HttpClient(
+                host="localhost",
+                port=8000,
+                settings=chromadb.config.Settings(
+                    persist_directory="./chroma_db",
+                )
             )
-        )
     except ValueError:
-        print("Error: No se puede conectar al servidor de Chroma. Asegúrate de que Docker esté en ejecución.")
-        sys.exit(1)
-    
+        return("Error: No se puede conectar al servidor de Chroma. Asegúrate de que Docker esté en ejecución.")
+        
+        
     collection = chroma_client.create_collection(
-        name="my_rag_db", 
-        embedding_function=embedding_function,
-        get_or_create=True,
-        metadata= {
-            "hnsw:space": "cosine", 
-            "hnsw:search_ef": 300, 
-            "description": "Colección ChromaDB usando Gemini"
-        }
+            name="my_rag_db", 
+            embedding_function=embedding_function,
+            get_or_create=True,
+            metadata= {
+                "hnsw:space": "cosine", 
+                "hnsw:search_ef": 300, 
+                "description": "Colección ChromaDB usando Gemini"
+            }
     )
 
-    collection.upsert(
-        documents=chunks,
-        ids=[f"id{i}" for i in range(len(chunks))]
-    )
-    results = collection.query(
-        query_texts=[question],
-        n_results=10
-    )
-    relevant_docs = results['documents'][0]
-    prompt_template = PromptTemplate(
-        template="""Si la información no está en el contexto, responde "Lo siento, no tengo suficiente información para responder a esta pregunta.":
+    try: 
+        if chunks:
+            collection.upsert(
+                documents=chunks,
+                ids=[f"id{i}" for i in range(1, len(chunks) + 1)]
+            )
 
-        Contexto: {context}
-        ---
-        Pregunta: {question}
-        Respuesta: Basa tu respuesta en "Según el contexto proporcionado," además de añadir la información más relevante. """,
-                input_variables=["context", "question"]
-    )
-    context_str = "\n\n---\n\n".join(relevant_docs)
-    formatted_prompt = prompt_template.format(context=context_str, question=question)
-    genai.configure(api_key=GOOGLE_API_KEY)
-    llm = genai.GenerativeModel(model_name='gemini-1.5-pro')
-    response_text = llm.generate_content(
-        formatted_prompt,
-        generation_config=genai.types.GenerationConfig(
-            temperature=0.3,
-            max_output_tokens=1024,
-            top_k=10,
-            top_p=0.95
-        )
-    )
-    return response_text.text
+            results = collection.query(
+                query_texts=[question],
+                n_results=10
+                )
+            relevant_docs = results['documents'][0]
+            prompt_template = PromptTemplate(
+                template="""Si la información no está en el contexto, responde "Lo siento, no tengo suficiente información para responder a esta pregunta.":
 
+                Contexto: {context}
+                ---
+                Pregunta: {question}
+                Respuesta: Basa tu respuesta en "Según el contexto proporcionado," además de añadir la información más relevante. """,
+                        input_variables=["context", "question"]
+            )
+            context_str = "\n\n---\n\n".join(relevant_docs)
+            formatted_prompt = prompt_template.format(context=context_str, question=question)
+            genai.configure(api_key=GOOGLE_API_KEY)
+            llm = genai.GenerativeModel(model_name='gemini-1.5-pro')
+            response_text = llm.generate_content(
+                formatted_prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.3,
+                    max_output_tokens=1024,
+                    top_k=10,
+                    top_p=0.95
+                )
+            )
+            return response_text.text
+    finally: 
+        try:
+            collection.delete(ids=[f"id{i}" for i in range(1, len(chunks) + 1)])
+            chroma_client.delete_collection(name="my_rag_db")
+        except Exception as e:
+            print(f"Se ha producido un error: {e}")
 
 def pipeline_gemini_image(image_path, question):
+    
     extracted_text = extract_text_from_image(image_path)
+    
     if not extracted_text:
         return "No se pudo extraer texto de la imagen."
-    chunks = split_text_into_chunks_gemini(extracted_text, chunk_size=1000, chunk_overlap=500)
-    embedding_function = embedding_functions.GoogleGenerativeAiEmbeddingFunction(
-        api_key=GOOGLE_API_KEY,
-        model_name="models/embedding-001"
-    )
-    chroma_client = chromadb.Client(
-        chromadb.config.Settings(
-            persist_directory="./path_to_chroma_db",
-        )
-    )
-    try:
-        chroma_client.delete_collection(name="local_rag_db")
-    except Exception:
-        pass
-    collection = chroma_client.get_or_create_collection(
-        name="local_rag_db", 
-        embedding_function=embedding_function,
-        metadata={"hnsw:space": "cosine", "hnsw:search_ef": 300}
-    )
-    collection.upsert(
-        documents=chunks,
-        ids=[f"id{i}" for i in range(len(chunks))]
-    )
-    results = collection.query(
-        query_texts=[question],
-        n_results=10
-    )
-    relevant_docs = results['documents'][0]
-    prompt_template = PromptTemplate(
-        template="""Si la información no está en el contexto, responde "Lo siento, no tengo suficiente información para responder a esta pregunta.":
+    
+    elif question == "(Sin pregunta)" or not question:
+        return "No se ha realizado ninguna pregunta."
+    else:
 
-Contexto: {context}
----
-Pregunta: {question}
-Respuesta: Según el contexto,""",
-        input_variables=["context", "question"]
-    )
-    context_str = "\n\n---\n\n".join(relevant_docs)
-    formatted_prompt = prompt_template.format(context=context_str, question=question)
-    genai.configure(api_key=GOOGLE_API_KEY)
-    llm = genai.GenerativeModel(model_name='gemini-1.5-pro')
-    response_text = llm.generate_content(
-        formatted_prompt,
-        generation_config=genai.types.GenerationConfig(
-            temperature=0.3,
-            max_output_tokens=1024,
-            top_k=4,
+        chunks = split_text_into_chunks(extracted_text, chunk_size=315, chunk_overlap=75)
+        
+        embedding_function = embedding_functions.GoogleGenerativeAiEmbeddingFunction(
+            api_key=GOOGLE_API_KEY,
+            model_name="models/embedding-001"
         )
-    )
-    return response_text.text
+
+        try:
+            chroma_client = chromadb.HttpClient(
+                host="localhost",
+                port=8000,
+                settings=chromadb.config.Settings(
+                    persist_directory="./chroma_db",
+                )
+            )
+        except ValueError:
+            return("Error: No se puede conectar al servidor de Chroma. Asegúrate de que Docker esté en ejecución.")
+
+        collection = chroma_client.create_collection(
+                name="my_rag_db", 
+                embedding_function=embedding_function,
+                get_or_create=True,
+                metadata= {
+                    "hnsw:space": "cosine", 
+                    "hnsw:search_ef": 300, 
+                    "description": "Colección ChromaDB usando Gemini"
+                }
+        )
+
+        try: 
+            if chunks:
+                collection.upsert(
+                    documents=chunks,
+                    ids=[f"id{i}" for i in range(1, len(chunks) + 1)]
+
+                )
+                results = collection.query(
+                    query_texts=[question],
+                    n_results=10
+                )
+                relevant_docs = results['documents'][0]
+                prompt_template = PromptTemplate(
+                    template="""Si la información no está en el contexto, responde "Lo siento, no tengo suficiente información para responder a esta pregunta.":
+
+                    Contexto: {context}
+                    ---
+                    Pregunta: {question}
+                    Respuesta: Según el contexto,""",
+                            input_variables=["context", "question"]
+                )
+                context_str = "\n\n---\n\n".join(relevant_docs)
+                formatted_prompt = prompt_template.format(context=context_str, question=question)
+                genai.configure(api_key=GOOGLE_API_KEY)
+                llm = genai.GenerativeModel(model_name='gemini-1.5-pro')
+                response_text = llm.generate_content(
+                    formatted_prompt,
+                    generation_config=genai.types.GenerationConfig(
+                        temperature=0.3,
+                        max_output_tokens=256,
+                        top_k=10,
+                        top_p=0.95
+                    )
+                )
+                return response_text.text
+        
+        finally:
+            try:
+                collection.delete(ids=[f"id{i}" for i in range(1, len(chunks) + 1)])
+                chroma_client.delete_collection(name="my_rag_db")
+            except Exception as e:
+                print(f"Se ha producido un error: {e}")
 
 ### Endpoints de la API
 
@@ -325,7 +363,7 @@ def ask():
     elif engine == "gemini":
         answer = pipeline_gemini(question, global_documents)
     else:
-        answer = "Motor no reconocido."
+        answer = "Modelo no reconocido."
     return jsonify({"answer": answer})
 
 @app.route('/upload_pdfs', methods=['POST'])
@@ -353,6 +391,7 @@ def upload_image():
         return jsonify({"error": "No se recibió imagen."}), 400
     image_file = request.files['image']
     question = request.form.get("question", "")
+
     if image_file.filename == "":
         return jsonify({"error": "No se seleccionó imagen."}), 400
     filename = image_file.filename

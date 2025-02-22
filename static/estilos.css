@@ -1,50 +1,44 @@
-* {
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #e6f0ff;
   font-family: "Trebuchet MS", "Lucida Sans Unicode", "Lucida Grande",
     "Lucida Sans", Arial, sans-serif;
   font-size-adjust: unset;
   font-style: normal;
   line-height: 1.275rem;
-  letter-spacing: 0.0071428571em;
 }
 
 h2 {
   color: #000000;
-  display: flex;
+  display: grid;
   flex-direction: column;
   align-items: center;
   align-content: center;
   text-align: center;
-  font-size: 25px;
-  font-weight: 600;
+  font-size: 1.5rem;
   color: black;
   font-family: "Trebuchet MS", "Lucida Sans Unicode", "Lucida Grande",
     "Lucida Sans", Arial, sans-serif;
   font-size-adjust: unset;
   font-style: normal;
-  line-height: 1.275rem;
-  letter-spacing: 0.0071428571em;
 }
 
-body {
-  margin: 0;
-  font-family: "Trebuchet MS", "Lucida Sans Unicode", "Lucida Grande",
-    "Lucida Sans", Arial, sans-serif;
-  background-color: #e6f0ff;
-  font-size-adjust: unset;
-  font-style: normal;
-  line-height: 1.275rem;
-  letter-spacing: 0.0071428571em;
-}
-.wrapper {
+.main-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 20px;
-  min-height: 100vh;
-  width: 100%;
-  position: fixed;
-  top: 0;
-  left: 0;
+}
+
+.wrapper {
+  width: 80%;
+  margin: auto;
+  padding: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 30px;
 }
 
 .sidebar {
@@ -54,8 +48,7 @@ body {
   flex-direction: column;
   align-items: center;
   border-right: 1px solid #b3c6ff;
-  padding-top: 0px;
-  transform: translate(-30%, -135%);
+  padding-top: 10px;
 }
 .sidebar button {
   background-color: #4d79ff;
@@ -72,7 +65,7 @@ body {
   background-color: #4d79ff;
 }
 .sidebar select {
-  margin-top: 15px;
+  margin-top: 20px;
   padding: 5px;
   border: 1px solid #b3c6ff;
   border-radius: 4px;
@@ -93,11 +86,13 @@ body {
   height: 80vh;
   padding: 20px;
 }
-
 .clear-history {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 20px;
+  right: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 8px 12px;
   background-color: #700e08;
   color: white;
@@ -105,8 +100,17 @@ body {
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9em;
+  width: auto;
+  min-width: 6em;
+  gap: 3px;
+  max-width: calc(100% - 40px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
+.clear-history:hover {
+  background-color: red;
+}
 .messages {
   flex: 1;
   overflow-y: auto;
@@ -130,6 +134,50 @@ body {
 .input-container {
   margin-top: 10px;
 }
+
+.file-input {
+  display: none;
+}
+.pdf-list-container {
+  width: 200px;
+  min-width: 150px;
+  background-color: #e6f0ff;
+  border-left: 1px solid #b3c6ff;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.pdf-list-container h3 {
+  margin-top: 0;
+}
+.pdf-list-container ul {
+  list-style-type: disc;
+  margin: 0;
+  padding-left: 18px;
+}
+
+@media (max-width: 768px) {
+  .main-container {
+    flex-direction: column;
+  }
+
+  .wrapper,
+  .sidebar,
+  .pdf-container {
+    width: 100%;
+  }
+  .clear-history {
+    top: 15px;
+    right: 15px;
+    font-size: 0.8em;
+    padding: 6px 10px;
+    min-width: 7em;
+    height: 2.2rem;
+  }
+}
+
 #chat-form {
   display: flex;
   gap: 10px;
@@ -148,41 +196,6 @@ body {
   border-radius: 4px;
   cursor: pointer;
 }
-
-.file-input {
-  display: none;
-}
-
-.pdf-list-container {
-  width: 200px;
-  min-width: 150px;
-  background-color: #e6f0ff;
-  border-left: 1px solid #b3c6ff;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  position: fixed;
-  right: 90px;
-  top: 85px;
-}
-
-.pdf-list-container h3 {
-  margin-top: 0;
-  top: 0;
-  background-color: #e6f0ff;
-  width: 100%;
-  padding: 10px 0;
-  z-index: 1;
-}
-
-.pdf-list-container ul {
-  margin: 0;
-  padding-left: 10px;
-  width: 100%;
-}
-
 #upload-pdf-btn:hover {
   background-color: #b3c6ff;
   color: white;
@@ -191,15 +204,6 @@ body {
 #upload-image-btn:hover {
   background-color: #b3c6ff;
   color: white;
-}
-
-.clear-history:hover {
-  background-color: red;
-}
-
-.custom_select {
-  position: relative;
-  display: inline-block;
 }
 
 #enviar-btn {

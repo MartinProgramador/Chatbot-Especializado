@@ -10,7 +10,7 @@ import chromadb
 import chromadb.utils.embedding_functions as embedding_functions
 
 # Configuramos la API de Gemini
-GOOGLE_API_KEY = ""
+GOOGLE_API_KEY = "AIzaSyCe7QBbSALVwSssqFy6jrOvFpt411ymf84"
 
 
 genai.configure(api_key=GOOGLE_API_KEY)
@@ -28,6 +28,14 @@ class existe_directorio_sin_ficheros(Exception):
 class file_not_found_error(Exception):
     def __init__(self, parametro1):
         self.parametro1 = parametro1
+
+chroma_client = chromadb.HttpClient(
+            host="localhost",
+            port=8000,
+            settings=chromadb.config.Settings(
+                persist_directory="./chroma_db",
+            )
+)
     
 # Cargamos los pdf's
 def load_pdfs(pdf_path):
@@ -73,28 +81,12 @@ def configure_and_create_collection_chroma(chunks):
     )
 
     try:
-        chroma_client = chromadb.HttpClient(
-            host="localhost",
-            port=8000,
-            settings=chromadb.config.Settings(
-                persist_directory="./chroma_db",
-            )
-        )
+       chroma_client
     except ValueError:
         print("Error: No se puede conectar al servidor de Chroma. Asegúrate de que Docker esté en ejecución.")
         sys.exit(1)
 
-    # Buscamos los nombres de las colecciones en chroma
-    #collection_names = chroma_client.list_collections()
-
-    # Buscamos si ya existe la colección creada en otras ejecuciones previamente y la borramos
-    #collection_name = chroma_client.get_collection(name="my_rag_db", embedding_function=embedding_function)
-    #for collection_name in collection_names:
-            #chroma_client.delete_collection(name=collection_name)
-
     # Generamos los embeddings
-    # create_collection
-    
     collection = chroma_client.create_collection(
         name="my_rag_db", 
         embedding_function=embedding_function,
@@ -108,14 +100,25 @@ def configure_and_create_collection_chroma(chunks):
 
     print(f"Configurando y creando la colección en ChromaDB ...")
 
-    collection.upsert(
-       documents=chunks,
-       ids=[f"id{i}" for i in range(len(chunks))],   
-    )
+    try:
+        if chunks:
+            collection.upsert(
+                documents=chunks,
+                ids=[f"id{i}" for i in range(1, len(chunks) + 1)]    
+            )
 
-    print("Datos añadidos a la colección")
+        print("Datos añadidos a la colección")
 
-    return collection
+        return collection
+    except Exception as e:
+            print(f"Se ha producido un error: {e}")
+
+def eliminar_coleccion(chroma_client, collection, chunks):
+    try:
+        collection.delete(ids=[f"id{i}" for i in range(1, len(chunks) + 1)])
+        chroma_client.delete_collection(name="my_rag_db")
+    except Exception as e:
+            print(f"Se ha producido un error: {e}")
 
 # Recuperamos los documentos de la colección relevantes de ChromaDB
 def get_relevant_documents(question, collection):
@@ -182,9 +185,6 @@ def main():
     # Llamamos a Chroma para crear los embeddings y la colección
     collection = configure_and_create_collection_chroma(chunks)
 
-    # Cargamos la collección en ChromaDB
-    #data_in_chroma = add_data_to_ChromaDB(chunks, collection)
-
     # Parseamos la pregunta
     parser = argparse.ArgumentParser(description="Consulta el PDF procesado.")
     parser.add_argument("question", type=str, help="Pregunta a responder")
@@ -198,6 +198,8 @@ def main():
         answer = my_rag(docs, question)
         # Mostramos la respuesta
         print(f"Respuesta: {answer}")
+        eliminar_coleccion(chroma_client, collection,chunks)
+
 
 if __name__ == "__main__":
     main()
