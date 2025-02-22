@@ -140,10 +140,8 @@ def pipeline_ollama_chroma(question, documents):
             print(f"Se ha producido un error: {e}")
 
 def pipeline_ollama_pinecone(question, documents):
-            
     if not documents:
-        return "No hay documentos PDF subidos en el directorio."
-    
+        return "No hay documentos subidos."
     full_text = "\n\n\n".join(documents)
     chunks = split_text_into_chunks(full_text, chunk_size=315, chunk_overlap=75)
     # Usamos la nueva versión de HuggingFaceEmbeddings
@@ -172,17 +170,16 @@ def pipeline_ollama_pinecone(question, documents):
     prompt_template = PromptTemplate(
         template="""Utiliza la siguiente información para responder a la pregunta. Si la información no está en el contexto, responde "Lo siento, no tengo suficiente información para responder a esta pregunta.":
 
-        Contexto: {context}
-        ---
-        Pregunta: {question}
-        Respuesta: Según el contexto,""",
-                input_variables=["context", "question"]
+Contexto: {context}
+---
+Pregunta: {question}
+Respuesta: Según el contexto,""",
+        input_variables=["context", "question"]
     )
     context_str = "\n\n---\n\n".join(docs)
     formatted_prompt = prompt_template.format(context=context_str, question=question)
     response = ollama.generate(model='llama3.2', prompt=formatted_prompt,
-                                options={"temperature": 0.3, "top_k": 4, "num_predict": 1024,  "top_p": 0.9})
-    
+                                options={"temperature": 0.3, "top_k": 4, "num_predict": 1024})
     return response.get('response', '')
 
 def pipeline_gemini(question, documents):
