@@ -179,7 +179,7 @@ Respuesta: Según el contexto,""",
     context_str = "\n\n---\n\n".join(docs)
     formatted_prompt = prompt_template.format(context=context_str, question=question)
     response = ollama.generate(model='llama3.2', prompt=formatted_prompt,
-                                options={"temperature": 0.3, "top_k": 4, "num_predict": 1024})
+                                options={"temperature": 0.3, "top_k": 10, "num_predict": 1024})
     return response.get('response', '')
 
 def pipeline_gemini(question, documents):
