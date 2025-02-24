@@ -26,10 +26,10 @@ global_documents = []
 pdf_filenames = []
 
 # Configura tus API Keys para Google Generative AI y Pinecone
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "") # tu api aqui
 genai.configure(api_key=GOOGLE_API_KEY)
 
-PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY", "") 
+PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY", "") # tu api aqui 
 PINECONE_ENVIRONMENT = os.environ.get("PINECONE_ENVIRONMENT", "us-east-1-aws") 
 
 ### Funciones de utilidades
@@ -143,7 +143,7 @@ def pipeline_ollama_pinecone(question, documents):
     if not documents:
         return "No hay documentos subidos."
     full_text = "\n\n\n".join(documents)
-    chunks = split_text_into_chunks(full_text, chunk_size=315, chunk_overlap=75)
+    chunks = split_text_into_chunks(full_text, chunk_size=100, chunk_overlap=75)
     # Usamos la nueva versión de HuggingFaceEmbeddings
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     # Configuramos Pinecone sin usar pinecone.init
